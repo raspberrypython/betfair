@@ -71,6 +71,7 @@ type Config struct {
 	KeyFile 	string
 	Exchange	string
 	Locale		string
+	ApplicationKey		string
 }
 
 type Session struct {
@@ -136,7 +137,7 @@ func (s *Session) getUrl(key, method string) (string, error) {
 	if _, exists := endpointMap[s.config.Exchange][key]; exists == false {
 		return "", errors.New("Invalid endpoint key: " + key)
 	}
-	return endpointMap[s.config.Exchange][key] + method, nil
+	return endpointMap[s.config.Exchange][key] + method + "/", nil
 }
 
 // Makes requests to Betfair API via http client.
@@ -145,7 +146,7 @@ func doRequest(s *Session, key, method string, body *strings.Reader) ([]byte, er
 	endpoint, err := s.getUrl(key, method)
 	if err != nil {
 		return nil, err
-	}	
+	}
 
 	req, err := http.NewRequest("POST", endpoint, body)
 	if err != nil {
@@ -154,10 +155,10 @@ func doRequest(s *Session, key, method string, body *strings.Reader) ([]byte, er
 
 	req.Header.Set("Accept", "application/json")
 
-	if key == "certLogin" {
+	if key == "certLogin" || method == "login" {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		// In non-interactive login, X-Application is not validated
-		req.Header.Set("X-Application", "Betfair Golang Library")		
+		req.Header.Set("X-Application", s.config.ApplicationKey)
 	} else {
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Authentication", s.token)
@@ -172,6 +173,55 @@ func doRequest(s *Session, key, method string, body *strings.Reader) ([]byte, er
 		}		
 	}
 	
+	res, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, errors.New(res.Status)
+	}
+	defer res.Body.Close()
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+
+func doRequestGet(s *Session, key, method string, body *strings.Reader) ([]byte, error) {
+
+	endpoint, err := s.getUrl(key, method)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", endpoint, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	if key == "certLogin" || method == "login" {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		// In non-interactive login, X-Application is not validated
+		req.Header.Set("X-Application", s.config.ApplicationKey)
+	} else {
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Authentication", s.token)
+		if key == "account" && method == "getDeveloperAppKeys" {
+			req.Header.Del("X-Application")
+		} else {
+			if s.Live {
+				req.Header.Set("X-Application", s.appKeys[LIVE_DATA])
+			} else {
+				req.Header.Set("X-Application", s.appKeys[DELAY_DATA])
+			}
+		}
+	}
+
 	res, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, err

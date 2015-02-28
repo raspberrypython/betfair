@@ -92,7 +92,7 @@ func (s *Session) GetDeveloperAppKeys() ([]DeveloperApp, error) {
 }
 
 func doAccountRequest(s *Session, method string, v interface{}) error {
-	data, err := doRequest(s, "account", method, strings.NewReader(""))
+	data, err := doRequestGet(s, "account", method, strings.NewReader(""))
 	if err != nil {
 		return err
 	}

@@ -248,7 +248,7 @@ func doBettingRequest(s *Session, method string, params *Params, v interface{}) 
 	}
 	body := strings.NewReader(string(bytes))
 
-	data, err := doRequest(s, "betting", method + "/", body)
+	data, err := doRequest(s, "betting", method, body)
 	if err != nil {
 		return err
 	}

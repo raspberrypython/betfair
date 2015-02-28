@@ -54,6 +54,7 @@ func (s *Session) LoginNonInteractive() error {
 		return err
 	}
 
+
 	var result certLoginResult
 	err = json.Unmarshal(data, &result)
 	if err != nil {
@@ -116,6 +117,29 @@ func (s *Session) Logout() error {
 
 	data, err := doRequest(s, "auth", "logout", strings.NewReader(""))
 	
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+	if result.Status != "SUCCESS" {
+		return errors.New(result.Error)
+	}
+
+	return nil
+}
+
+
+// Logout from Betfair.
+func (s *Session) Login() error {
+
+	body := strings.NewReader("username=" + s.config.Username + "&password=" + s.config.Password)
+
+	var result keepAliveResult
+
+	data, err := doRequest(s, "auth", "login", body)
+
 	if err != nil {
 		return err
 	}
