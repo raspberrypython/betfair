@@ -41,22 +41,22 @@ import (
 )
 
 const (
-	LIVE_DATA	= 0
-	DELAY_DATA	= 1
+	LIVE_DATA  = 0
+	DELAY_DATA = 1
 )
 
 var ukEndpoints = map[string]string{
 	"certLogin" : "https://identitysso-api.betfair.com/api/certlogin",
-	"auth"		: "https://identitysso.betfair.com/api/",
-	"betting"	: "https://api.betfair.com/exchange/betting/rest/v1.0/",
-	"account"	: "https://api.betfair.com/exchange/account/rest/v1.0/",
+	"auth"        : "https://identitysso.betfair.com/api/",
+	"betting"    : "https://api.betfair.com/exchange/betting/rest/v1.0/",
+	"account"    : "https://api.betfair.com/exchange/account/rest/v1.0/",
 }
 
 var auEndpoints = map[string]string{
 	"certLogin" : "https://identitysso-api.betfair.com/api/certlogin",
-	"auth"		: "https://identitysso.betfair.com/api/",
-	"betting"	: "https://api-au.betfair.com/exchange/betting/rest/v1.0/",
-	"account"	: "https://api-au.betfair.com/exchange/account/rest/v1.0/",
+	"auth"        : "https://identitysso.betfair.com/api/",
+	"betting"    : "https://api-au.betfair.com/exchange/betting/rest/v1.0/",
+	"account"    : "https://api-au.betfair.com/exchange/account/rest/v1.0/",
 }
 
 var endpointMap = map[string]map[string]string{
@@ -65,21 +65,21 @@ var endpointMap = map[string]map[string]string{
 }
 
 type Config struct {
-	Username 	string
-	Password 	string
-	CertFile 	string
-	KeyFile 	string
-	Exchange	string
-	Locale		string
-	ApplicationKey		string
+	Username              string
+	Password              string
+	CertFile              string
+	KeyFile               string
+	Exchange              string
+	Locale                string
+	ApplicationKey        string
 }
 
 type Session struct {
-	config		*Config
-	httpClient	*http.Client
-	token 		string
-	appKeys		[2]string
-	Live		bool
+	config        *Config
+	httpClient    *http.Client
+	token        string
+	appKeys        [2]string
+	Live         bool
 }
 
 // Create a new session. Please note that you have to login to retrieve a
@@ -90,10 +90,10 @@ func NewSession(c *Config) (*Session, error) {
 
 	// Configuration
 	if c.Username == "" {
-		return s, errors.New("Config.Username is empty.")		
+		return s, errors.New("Config.Username is empty.")
 	}
 	if c.Password == "" {
-		return s, errors.New("Config.Password is empty.")		
+		return s, errors.New("Config.Password is empty.")
 	}
 	if _, err := os.Stat(c.CertFile); os.IsNotExist(err) {
 		return s, errors.New("Config.CertFile does not exist.")
@@ -135,9 +135,17 @@ func NewSession(c *Config) (*Session, error) {
 // Builds URLs for API methods.
 func (s *Session) getUrl(key, method string) (string, error) {
 	if _, exists := endpointMap[s.config.Exchange][key]; exists == false {
-		return "", errors.New("Invalid endpoint key: " + key)
+		return "", errors.New("Invalid endpoint key: "+key)
 	}
-	return endpointMap[s.config.Exchange][key] + method + "/", nil
+	return endpointMap[s.config.Exchange][key]+method+"/", nil
+}
+
+type ErrorResponce struct {
+	Res *http.Response
+}
+
+func (r *ErrorResponce) Error() string {
+	return r.Res.Status
 }
 
 // Makes requests to Betfair API via http client.
@@ -168,17 +176,21 @@ func doRequest(s *Session, key, method string, body *strings.Reader) ([]byte, er
 			if s.Live {
 				req.Header.Set("X-Application", s.appKeys[LIVE_DATA])
 			} else {
-				req.Header.Set("X-Application", s.appKeys[DELAY_DATA])				
+				req.Header.Set("X-Application", s.appKeys[DELAY_DATA])
 			}
-		}		
+		}
 	}
-	
+
 	res, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	if res.StatusCode != 200 {
-		return nil, errors.New(res.Status)
+		data, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		return nil, errors.New(string(data))
 	}
 	defer res.Body.Close()
 	data, err := ioutil.ReadAll(res.Body)
